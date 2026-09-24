@@ -14,4 +14,4 @@ XPolicyLab
 **/*.log
 **/.git/
 
-policy/FastWAM/data
+Xpolicylab/policy/FastWAM/data
