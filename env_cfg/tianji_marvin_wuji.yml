@@ -1,0 +1,3 @@
+config:
+  robot: tianji_marvin_wuji
+  sim: sim_config_multi

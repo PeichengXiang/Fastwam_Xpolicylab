@@ -1,0 +1,17 @@
+data/
+chpt/
+pretrain_model/
+logs/
+.codex-backups/
+XPolicyLab
+**/__pycache__/
+**/*.pyc
+**/checkpoints*/
+**/*.pt
+**/*.ckpt
+**/*.bak-*
+**/text_embeds_cache/
+**/*.log
+**/.git/
+
+policy/FastWAM/data
