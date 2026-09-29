@@ -4,11 +4,13 @@ set -euo pipefail
 # Fresh 8-GPU FastWAM run for the active EgoVLA benchmark.  The W&B token is
 # deliberately not stored in this file; export WANDB_API_KEY in the launch
 # environment (or pass it through a protected scheduler secret).
-WORKSPACE=${WORKSPACE:-/personal/xiangpc/0812_Xpolicylab_bench/FastWAM}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WORKSPACE=${WORKSPACE:-${REPO_ROOT}}
 FW="$WORKSPACE/Xpolicylab/policy/FastWAM/FastWAM"
-FASTWAM_ENV=${FASTWAM_ENV:-/personal/miniconda3/envs/fastwam}
+FASTWAM_ENV=${FASTWAM_ENV:-/vepfs-cnbje63de6fae220/xiangpc/conda_envs/FTP_1}
 DATASET_ID=${DATASET_ID:-EgoVLA_benchmark_fastwam_v21_joint38_cmd}
-DATASET_ROOT="$WORKSPACE/data/$DATASET_ID"
+DATASET_ROOT=${DATASET_ROOT:-"$WORKSPACE/Xpolicylab/policy/FastWAM/data/$DATASET_ID"}
 DATASET="$DATASET_ROOT/lerobot"
 STATS="$DATASET_ROOT/dataset_stats.json"
 CACHE="$FW/data/text_embeds_cache/xpolicylab/$DATASET_ID"
@@ -43,6 +45,7 @@ mkdir -p "$WORKSPACE/logs"
 cd "$FW"
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
 export PATH="$FASTWAM_ENV/bin:$PATH"
+export PYTHONNOUSERSITE=1
 export DIFFSYNTH_MODEL_BASE_PATH="$WORKSPACE/pretrain_model"
 export DIFFSYNTH_SKIP_DOWNLOAD=true
 export PYTHONPATH="$FW:$FW/src:$WORKSPACE:${PYTHONPATH:-}"

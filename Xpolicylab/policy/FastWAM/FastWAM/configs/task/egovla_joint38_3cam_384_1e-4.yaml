@@ -3,7 +3,6 @@
 # joints, 30 Hz, three camera streams).  dataset_dirs/stats/cache/output are
 # supplied by launch_egovla_fastwam_8gpu.sh so the recipe remains relocatable.
 defaults:
-  - override /data: robotwin
   - override /model: fastwam
   - _self_
 
@@ -23,6 +22,7 @@ seed: 42
 max_grad_norm: 1.0
 weight_decay: 1.0e-2
 resume: null
+save_optimizer_state: true
 # Equal task probability, then uniform frames within each task (with replacement).
 # Set frame_uniform to reproduce historical runs. Changing mode needs a new run.
 train_sampling: task_uniform
@@ -37,6 +37,7 @@ wandb:
 
 data:
   train:
+    _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
     dataset_dirs: []
     shape_meta:
       images:
@@ -92,6 +93,7 @@ data:
     context_len: 128
 
   val:
+    _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
     dataset_dirs: []
     shape_meta:
       images:

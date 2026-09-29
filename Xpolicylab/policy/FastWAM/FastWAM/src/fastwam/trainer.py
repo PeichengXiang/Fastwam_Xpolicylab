@@ -6,6 +6,7 @@ import re
 from math import ceil
 from pathlib import Path
 import time
+import warnings
 
 import numpy as np
 import torch
@@ -48,6 +49,7 @@ class Wan22Trainer:
         self.seed = int(cfg.seed)
         
         self.resume = cfg.resume
+        self.save_optimizer_state = bool(cfg.get("save_optimizer_state", True))
         self.mixed_precision = str(cfg.mixed_precision).strip().lower()
         if self.mixed_precision not in {"no", "fp16", "bf16"}:
             raise ValueError(
@@ -286,8 +288,24 @@ class Wan22Trainer:
         if not resume_path.exists():
             raise FileNotFoundError(f"Resume checkpoint not found: {resume}")
         logger.info("Loading weight checkpoint only: %s", resume)
-        self.accelerator.unwrap_model(self.model).load_checkpoint(str(resume_path), optimizer=None)
-        logger.warning("Loaded .pt weights only; optimizer/scheduler/step were not restored under ZeRO2.")
+        payload = self.accelerator.unwrap_model(self.model).load_checkpoint(str(resume_path), optimizer=None)
+        loaded_step = payload.get("step") if isinstance(payload, dict) else None
+        if loaded_step is not None:
+            self.global_step = int(loaded_step)
+            # The optimizer moments cannot be recovered from a failed ZeRO save.
+            # Continue the configured 80k scheduler at the checkpoint step.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                for _ in range(self.global_step):
+                    self.scheduler.step()
+            logger.warning(
+                "Loaded weights-only checkpoint at step=%d; optimizer and dataloader state were reset.",
+                self.global_step,
+            )
+        else:
+            logger.warning(
+                "Loaded .pt weights only; checkpoint has no step; optimizer/scheduler/step were not restored."
+            )
 
     def _set_dit_only_train_mode(self):
         # Match DiffSynth's freeze_except("dit"): only DiT stays trainable/in-train-mode.
@@ -602,12 +620,14 @@ class Wan22Trainer:
             ckpt_path = self._save_weights_checkpoint(step_tag=step_tag)
         self.accelerator.wait_for_everyone()
 
-        state_path = os.path.join(self.state_dir, step_tag)
-        ensure_dir(state_path)
-        self.accelerator.save_state(output_dir=state_path)
-        if self.accelerator.is_main_process:
-            self._save_trainer_state(state_path)
-        self.accelerator.wait_for_everyone()
+        state_path = None
+        if self.save_optimizer_state:
+            state_path = os.path.join(self.state_dir, step_tag)
+            ensure_dir(state_path)
+            self.accelerator.save_state(output_dir=state_path)
+            if self.accelerator.is_main_process:
+                self._save_trainer_state(state_path)
+            self.accelerator.wait_for_everyone()
 
         return {"weights_path": ckpt_path, "state_path": state_path}
 

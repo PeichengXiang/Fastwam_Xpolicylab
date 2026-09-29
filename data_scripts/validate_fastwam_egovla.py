@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import av
 import torchvision.transforms as T
 from omegaconf import OmegaConf
 
@@ -20,16 +21,12 @@ from fastwam.datasets.lerobot.utils.normalizer import load_dataset_stats_from_js
 
 
 def first_pts(path: Path) -> float:
-    out = subprocess.check_output(
-        [
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "frame=pts_time", "-read_intervals", "%+#1",
-            "-of", "csv=p=0", str(path),
-        ],
-        text=True,
-    )
-    token = out.strip().splitlines()[0].strip().rstrip(",")
-    return float(token)
+    with av.open(str(path)) as container:
+        stream = container.streams.video[0]
+        frame = next(container.decode(video=0))
+        if frame.pts is None:
+            raise ValueError(f"missing first-frame PTS in {path}")
+        return float(frame.pts * stream.time_base)
 
 
 def make_dataset(dataset: Path, stats: Path, cache: Path, training: bool) -> RobotVideoDataset:

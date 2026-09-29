@@ -66,8 +66,15 @@ def natural_episode_key(path: Path) -> tuple[int, str]:
         return (10**18, str(path))
 
 
-def is_deprecated(path: Path) -> bool:
-    return any("deprecated" in part.lower() for part in path.parts)
+def is_deprecated(path: Path, raw_root: Path | None = None) -> bool:
+    """Return whether a trajectory is under a deprecated subdirectory.
+
+    The raw root is named ``EgoVLA_raw_remove_deprecated``.  Looking at
+    ``path.parts`` therefore misclassifies every active episode; only path
+    components below the raw root can carry the deprecated marker.
+    """
+    parts = path.relative_to(raw_root).parts if raw_root is not None else path.parts
+    return any("deprecated" in part.lower() for part in parts)
 
 
 def discover_raw(raw_root: Path) -> tuple[list[dict], dict[str, int], int]:
@@ -76,8 +83,8 @@ def discover_raw(raw_root: Path) -> tuple[list[dict], dict[str, int], int]:
     total_frames = 0
     for task_dir in sorted(p for p in raw_root.iterdir() if p.is_dir() and p.name != ".cache"):
         all_files = sorted(task_dir.rglob("episode_*.hdf5"), key=natural_episode_key)
-        active = [p for p in all_files if not is_deprecated(p)]
-        deprecated = [p for p in all_files if is_deprecated(p)]
+        active = [p for p in all_files if not is_deprecated(p, raw_root)]
+        deprecated = [p for p in all_files if is_deprecated(p, raw_root)]
         if deprecated:
             print(f"[info] excluding {len(deprecated)} deprecated files under {task_dir.name}")
         if not active:
